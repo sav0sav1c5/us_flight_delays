@@ -16,7 +16,93 @@ def get_query_1():
         - Koriste se kolekcije `us_flights_2023` i `airports_geolocation`. 
     """
 
-    pass
+    pipeline = [
+        {
+            "$match" : {
+                "Dep_Airport" : { "$ne" : None },
+                "Dep_Delay" : { "$ne" : None },
+                "FlightDate" : { "$ne" : None }
+            }
+        },
+        {
+            "$addFields" : {
+                "month" : { "$toInt" : { "$substr" : [ "$FlightDate", 5, 2]}}
+            }
+        },
+        {
+            "$addFields" : {
+                "season" : {
+                    "#switch" : {
+                        "branches" : [
+                            {
+                                "case" : { "$in" : [ "$month", [12, 1, 2]] },
+                                "then" : "Winter"
+                            },
+                            {
+                                "case" : { "$in" : [ "$month", [3, 4, 5]] },
+                                "then" : "Spring"
+                            },
+                            {
+                                "case" : { "$in" : [ "$month", [6, 7, 8]] },
+                                "then" : "Summer"
+                            },
+                            {
+                                "case" : { "$in" : [ "$month", [9, 10, 11]] },
+                                "then" : "Autumn"
+                            }                            
+                        ],
+                        "default" : "Unknown"
+                    }
+                }
+            }
+        },
+        {
+            "$lookup" : {
+                "from" : "airport_geolocation",
+                "localField" : "Dep_Airport",
+                "foreignField" : "IATA_CODE",
+                "as" : "geolocation_info"
+            }
+        },
+        {
+            "$unwind" : {
+                "path" : "$geolocation_info",
+                "preserveNullAndEmptyArrays" : False        # Remove flight witout geolocation info
+            }
+        },
+        {
+            "$group" : {
+                "_id" : {
+                    "state" : "$geolocation_info.state",
+                    "season" : "$season"
+                },
+                "average_delay" : { "$avg" : "$Dep_Delay" },
+                "flight_count" : { "$sum" : 1}
+            }
+        },
+        {
+            "$project" : {
+                "_id" : 0,                              # Dont show id
+                "state" : "$_id.state",                 # Show state pulled from _id  
+                "season" : "$_id.season",
+                "average_delay" : {
+                    "$round" : [ "$average_delay", 2]   # Avg. delay with 2 decimal
+                },
+                "flight_count" : 1                     # Show flight count
+            }
+        },
+        {
+            "$sort" : {
+                "average_delay" : -1,
+                "flight_count" : -1 
+            }
+        },
+        {
+            "$limit" : 10
+        }
+    ]
+
+    return pipeline
 
 def get_query_2():
     """
@@ -26,7 +112,11 @@ def get_query_2():
         - **Značajne padavine:** definišu se kao `prcp > 5 mm`, što meteorološki označava **umerene do jake padavine**.  
     """
 
-    pass
+    pipeline = [
+
+    ]
+
+    return pipeline
 
 def get_query_3():
     """
@@ -38,7 +128,11 @@ def get_query_3():
             - `wspd > 15 m/s` → jak do olujni vetar  
     """
 
-    pass
+    pipeline = [
+
+    ]
+
+    return pipeline
 
 def get_query_4():
     """
@@ -49,7 +143,28 @@ def get_query_4():
             - predstavlja broj različitih površina pista (`surface`) po aerodromu.  
     """
 
-    pass
+    pipeline = [
+        {
+
+        },
+        {
+
+        },
+        {
+
+        },
+        {
+
+        },
+        {
+
+        },
+        {
+
+        },
+    ]
+
+    return pipeline
 
 def get_query_5():
     """
@@ -58,4 +173,25 @@ def get_query_5():
         - Koristi se kolekcija `us_flights_2023`. 
     """
 
-    pass
+    pipeline = [
+        {
+
+        },
+        {
+
+        },
+        {
+
+        },
+        {
+
+        },
+        {
+
+        },
+        {
+
+        },
+    ]
+
+    return pipeline
