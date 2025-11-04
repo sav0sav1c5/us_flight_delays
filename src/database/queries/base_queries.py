@@ -11,9 +11,18 @@ def get_base_queries():
 
 def get_query_1():
     """
-    **Upit 1:** Koje američke države imaju najveća prosečna kašnjenja po sezonama (Winter, Spring, Summer, Fall)?  
-        - Analizira se sezonalnost kašnjenja — da li se kašnjenja razlikuju po godišnjim dobima.  
-        - Koriste se kolekcije `us_flights_2023` i `airports_geolocation`. 
+    **Query 1:** Which US states have the highest average delays by season (Winter, Spring, Summer, Fall)?
+        Data from the **`us_flights_2023`** and **`airports_geolocation`** collections are analyzed.
+
+        The season is determined based on the `flight_date` field:
+        * **Winter:** December–February
+        * **Spring:** March–May
+        * **Summer:** June–August
+        * **Fall:** September–November
+
+        The average delay is calculated as `avg(dep_delay)` for all flights from a given state (`state` from `airports_geolocation`) in a given season.
+
+        **Result:** List of US states with average delay by season, sorted in descending order of average delay.
     """
 
     pipeline = [
@@ -106,26 +115,84 @@ def get_query_1():
 
 def get_query_2():
     """
-    **Upit 2:** Koje avio-kompanije imaju najveća prosečna kašnjenja tokom dana sa padavinama?  
-        - Cilj je proceniti uticaj vremenskih uslova na tačnost letova po avio-kompanijama.  
-        - Koriste se kolekcije `us_flights_2023` i `weather_meteo_by_airport`.  
-        - **Značajne padavine:** definišu se kao `prcp > 5 mm`, što meteorološki označava **umerene do jake padavine**.  
+    **Query 2:** Which airlines have the highest average delays on rainy days?
+        Collections **`us_flights_2023`** and **`weather_meteo_by_airport`** are used.
+
+        Precipitation is taken from the `prcp' field (mm).
+
+        **Significant precipitation**: days when `prcp > 5.0`.
+
+        Need to find average delay (`avg(dep_delay)`) by airline (`airline`) only for days with significant precipitation, based on weather conditions from `departure.airport_code`.
+
+        **Result:** Airlines with average delay on days with precipitation > 5 mm, sorted in descending order of value.
     """
 
     pipeline = [
-
+        {
+            "$match" : {
+                "Dep_Airport" : { "$ne" : None },
+                "Dep_Delay" : { "$ne" : None },
+                "FlightDate" : { "$ne" : None },
+                "Airline" : { "$ne" : None }
+            }
+        },
+        {
+            "$lookup" : {
+                "from" : "weather_meteo_by_airport",
+                "let" : {
+                    "dep_airport" : "$Dep_Airport",
+                    "flight_date" : "$FlightDate"
+                },
+                "pipeline" : [
+                    {
+                        "$match" : {
+                            "$expr" : {
+                                "$and" : [
+                                    { "$eq" : [ "$airport_id", "$$dep_airport"] },
+                                    { "$eq" : [ "$time", "$$flight_date"] },
+                                    { "$gt" : [ "prcp", 5.0] },
+                                    { "$ne" : [ "prcp", None] }
+                                ]
+                            }
+                        }
+                    },
+                    {"$project": {"_id": 1}}  # Return min data cuz we just need to know if it exists
+                ],
+                "as" : "weather_info"
+            }
+        },
+        {
+            "$group" : {
+                "_id" : "$Airline",
+                "average_delay" : { "$avg" : "Dep_Delay" },
+                "flight_count" : { "$sum" : 1 },
+                "total_delay_min" : { "$sum" : "Dep_Delay" }
+            }
+        },
+        {
+            "$sort" : { "average_delay" : -1}
+        },
+        {
+            "$limit" : 5
+        }
     ]
 
     return pipeline
 
 def get_query_3():
     """
-    **Upit 3:** Koji aerodromi imaju najviše otkazanih letova tokom loših vremenskih uslova?  
-        - Povezuje informacije o otkazanim letovima i meteorološkim uslovima.  
-        - Koriste se kolekcije `us_flights_2023`, `weather_meteo_by_airport` i `airports_geolocation`.  
-        - **Loše vreme:** definisano kao:
-            - `prcp > 10 mm` → jake ili vrlo jake padavine  
-            - `wspd > 15 m/s` → jak do olujni vetar  
+    **Query 3:** Which airports have the most canceled flights during bad weather?
+        Collections **`cancelled_deverted_2023`**, **`weather_meteo_by_airport`** and **`airports_geolocation`** are used.
+
+        Canceled flights are those with `cancelled = 1`.
+
+        **Bad weather conditions** are defined as:
+        * `prcp > 10 mm' *(heavy precipitation)*
+        * **or** `wspd > 15 m/s' *(strong wind)*
+
+        The query should match ($lookup) flights and weather data by `dep_airport` and `airport_id`.
+
+        **Result:** Airports with the highest number of canceled flights during bad weather, sorted in descending order of cancellations.
     """
 
     pipeline = [
@@ -136,11 +203,16 @@ def get_query_3():
 
 def get_query_4():
     """
-    **Upit 4:** Da li aerodromi sa raznovrsnijim pistama imaju manja prosečna kašnjenja?  
-        - Analizira vezu između infrastrukture aerodroma i efikasnosti letova.  
-        - Koriste se kolekcije `airports`, `runways` i `us_flights_2023`.  
-        - Uvodi se **Runway Diversity Index (RDI)**:
-            - predstavlja broj različitih površina pista (`surface`) po aerodromu.  
+    **Query 4:** Do airports with more diverse runways have lower average delays?
+        Collections **`airports`**, **`runways`**, and **`us_flights_2023`** are used.
+
+        For each airport, the following is calculated:
+        * **Runway Diversity Index (RDI)** = number of different values ​​of `surface` from the collection of `runways` per airport.
+        * **Average Delay** = average `dep_delay` from `us_flights_2023` per airport.
+
+        It is necessary to merge (`$lookup') all three collections, calculate both metrics, and analyze whether airports with higher RDI have lower average delays.
+
+        **Result:** List of airports with RDI and average delay, sorted in ascending order of average delay.
     """
 
     pipeline = [
@@ -168,9 +240,13 @@ def get_query_4():
 
 def get_query_5():
     """
-    **Upit 5:** Kako se performanse avio-kompanija razlikuju po tipu udaljenosti leta (Short, Medium, Long Haul)?  
-        - Poredi prosečna kašnjenja po tipu rute (`distance_type`).  
-        - Koristi se kolekcija `us_flights_2023`. 
+    **Query 5:** How does airline performance differ by type of flight distance (Short, Medium, Long Haul)?
+        Collection **`us_flights_2023`** is used.
+        - `distance_type' indicates the flight length category.
+
+        For each airline (`airline`) the average delay (`avg(arr_delay)`) is calculated, grouped by `distance_type`.
+
+        **Result:** A table with airlines and average delay by route type, sorted descending by average delay within each category.
     """
 
     pipeline = [
