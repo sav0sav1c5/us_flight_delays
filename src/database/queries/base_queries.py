@@ -196,7 +196,68 @@ def get_query_3():
     """
 
     pipeline = [
+        {
+            "$match" : {
+                "Dep_Airport" : { "$ne" : None },
+                "FlightDate" : { "$ne" : None },
+                "Dep_Delay" : { "$ne" : None },
+                "Cancelled" : { "$eq" : 1 }
+            }
+        },
+        {
+            "$lookup" : {
+                "from" : "weather_meteo_by_airport",
+                "let" : {
+                    "dep_airport" : "$Dep_Airport",
+                    "flight_date" : "$FlightDate"
+                },
+                "pipeline" : [
+                    {
+                        "$match" : {
+                            "$expr" : {
+                                "$and" : [
+                                    { "$eq" : [ "$airport_id", "$$dep_airport" ]},
+                                    { "$eq" : [ "$time", "$$flight_date" ]},
+                                    { "$or" : [
+                                        { "$gt" : [ "$prcp", 5.0]},
+                                        { "$gt" : [ "$wspd", 15]}
+                                    ]}
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "$project" : { "_id" : 1 }
+                    }
+                ],
+                "as" : "weather_info"
+            }
+        },
+        {
+            "$match": {
+                "weather_info" : {"$ne" : [] }
+            }
+        },
+        {
+            "$lookup" : {
+                "from" : "airports_geolocation",
+                "localField" : "Dep_Airport",
+                "foreignField" : "IATA_CODE",
+                "as" : "airport_info"
+            }
+        },
 
+        {
+            "$group" : {
+                "_id" : "$Dep_Airport",
+                "cancelled_flights_count" : { "$sum" : 1 },
+                "city" : { "$first" : "$airport_info.CITY" },
+                "state" : { "$first" : "$airport_info.STATE" }
+            }
+        },
+        { 
+            "$sort" : { "cancelled_flights_count" : -1 }
+        }
     ]
 
     return pipeline
