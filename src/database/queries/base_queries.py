@@ -278,36 +278,103 @@ def get_query_4():
 
     pipeline = [
         {
-
+            "$match" : {
+                "iata_code" : { "$ne" : None },
+                "type" : { "$in" : ["medium_airport", "large_airport"]}
+            }
         },
         {
-
+            "$lookup" : {
+                "from" : "runways",
+                "localField" : "ident",
+                "foreignField" : "airport_ident",
+                "as" : "runway_info"
+            },
         },
         {
-
+            "$lookup" : {
+                "from" : "us_flights_2023",
+                "let" : {
+                    "airport_code" : "$iata_code"
+                },
+                "pipeline" : [
+                    {
+                        "$match" : {
+                            "$expr" : {
+                                "$eq" : [ "$Dep_Airport", "$$airport_code" ]
+                            }
+                        }
+                    },
+                    {
+                        "$group" : {
+                            "_id" : "$Dep_Airport",
+                            "average_delay" : { "$avg" : "$Dep_Delay" },
+                            "total_flights" : { "$sum" : 1 }
+                        }
+                    }
+                ],
+                "as" : "flight_info"
+            }
         },
         {
-
+            "$match" : {
+                "runway_info" : { "$ne" : [] },
+                "flight_info" : { "$ne" : [] }
+            }
         },
         {
-
+            "$addFields" : { 
+                "RDI": { 
+                    "$size": { 
+                        "$setUnion": [
+                            { "$map": { 
+                                "input": "$runway_info", 
+                                "as": "runway", 
+                                "in": "$$runway.surface"
+                            }}, 
+                            [] 
+                        ] 
+                    } 
+                }
+            }
         },
         {
-
+            "$project" : {
+                "airport_code" : "$iata_code",
+                "airport_name" : "$name",
+                "RDI" : 1,
+                "average_delay" : {
+                    "$round" : [ { "$arrayElemAt": ["$flight_info.average_delay", 0] }, 2] 
+                },
+                "total_flights": { 
+                    "$arrayElemAt": ["$flight_info.total_flights", 0] 
+                },
+                "runway_surfaces": {
+                    "$map": {
+                        "input": "$runway_info",
+                        "as": "runway",
+                        "in": "$$runway.surface"
+                    }
+                }
+            }
         },
+        {
+            "$sort" : { "average_delay" : -1, "total_flights" : -1 }
+        }
     ]
 
     return pipeline
 
 def get_query_5():
     """
-    **Query 5:** How does airline performance differ by type of flight distance (Short, Medium, Long Haul)?
-        Collection **`us_flights_2023`** is used.
-        - `distance_type' indicates the flight length category.
+    **Query 5:** Which airlines are most affected by **weather-related delays** at **high-elevation airports** with **complex communication frequency environments**?
+        This query uses collections: **`us_flights_2023`**, **`airports`**, and **`airport_frequencies`**.
 
-        For each airline (`airline`) the average delay (`avg(arr_delay)`) is calculated, grouped by `distance_type`.
+        Which airlines have the most weather-related delays (weather delay > 10 minutes), for flights from airports with an altitude of more than 500 feet and more than 5 communication frequencies?
+        
+        We analyze how **weather delays** vary across airlines **depending on characteristics of the airports they operate from** and return **top 10** airlines most affected. 
 
-        **Result:** A table with airlines and average delay by route type, sorted descending by average delay within each category.
+        **Result:**  A ranked list of airlines operating in **high-elevation, high-complexity airports**, showing how strongly **weather delays** affect them. 
     """
 
     pipeline = [
