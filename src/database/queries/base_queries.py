@@ -379,23 +379,44 @@ def get_query_5():
 
     pipeline = [
         {
-
+            "$match" : {
+                "Dep_Airport" : { "$ne" : None },
+                "FlightDate" : { "$ne" : None },
+                "Dep_Delay" : { "$ne" : None },
+                "Airline" : { "$ne" : None },
+                "Delay_Weather" : { "$gt" : 10, "$ne" : None }
+            }
         },
         {
-
+            "$group" : {
+                "_id" : {
+                    "airline" : "$Airline",
+                    "airport" : "$Dep_Airport"
+                },
+                "weather_delay_count" : { "$sum" : 1 },
+                "total_weather_delay" : { "$sum" : "$Delay_Weather" },
+                "average_weather_delay" : { "$avg" : "$Delay_Weather" }
+            }
         },
         {
-
+            "$lookup" : {
+                "from" : "airports",
+                "localField" : "Dep_Airport",
+                "foreignField" : "iata_code",
+                "as" : "airport_info"
+            }
         },
         {
-
+            "$lookup" : {
+                "from" : "airport_frequencies",
+                "localField" : "airport_info.ident",
+                "foreignField" : "airport_ident",
+                "as" : "airport_freq_info"
+            }
         },
         {
-
-        },
-        {
-
-        },
+            "$limit" : 5
+        }
     ]
 
     return pipeline
