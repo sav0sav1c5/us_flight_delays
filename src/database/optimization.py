@@ -1,5 +1,6 @@
 import time
 from pymongo import InsertOne
+from collections import defaultdict
 
 def cache_airports(database):
     """
@@ -32,6 +33,38 @@ def cache_airport_geolocations(database):
 
     return airport_geolocations_cache
 
+def cache_runways(database):
+    """
+    Function for caching runways data by airport where they are locatied.
+    """
+
+    runways_cache = defaultdict(list)
+
+    for runway in database['runways'].find({}):
+
+        airport_ident = runway.get('airport_ident')
+
+        if airport_ident:
+            runways_cache[airport_ident.upper()].append(runway)
+
+    return runways_cache
+
+def cache_airport_frequencies(database):
+    """
+    Function for caching airport frequencies data by airport of which they are part of.
+    """
+
+    airport_frequencies_cache = defaultdict(list)
+
+    for airport_frequency in database['airport_frequencies'].find({}):
+
+        airport_ident = airport_frequency.get('airport_ident')
+
+        if airport_ident:
+            airport_frequencies_cache[airport_ident.upper()].append(airport_frequency)
+
+    return airport_frequencies_cache
+
 def create_optimized_collections(database, batch_size = 10000):
     """
     Function for optimized migration with batch inserts and cachcing of data in RAM.
@@ -42,6 +75,12 @@ def create_optimized_collections(database, batch_size = 10000):
 
     # Cache airport geolocation data
     airports_geolocations_cache = cache_airport_geolocations(database)
+
+    # Cache runways data
+    runways_cache = cache_runways(database)
+
+    # Cache airport frequencies data
+    airport_frequencies_cache = cache_airport_frequencies(database)
 
     pass
 
