@@ -147,18 +147,26 @@ def calculate_airport_summary_metrics(airport, runways_cache, airport_frequencie
     """
     Function for calculating aggregated metrics for a passed airport.
     """
-    runway_count = 0
-    max_runway_length_ft = 0
-    has_lighted_ruway = False
-    surfaces = {}
-    frequency_count = 0
-    has_twr = False
+    ident = airport.get('ident')
+    runways = runways_cache.get(ident, [])
+    airport_frequencies = airport_frequencies_cache.get(ident, [])
+
+    runway_count = len(runways)
+
+    max_runway_length_ft = max(runway.get('length_ft') for runway in runways) if runways else 0
     
+    has_lighted_runway = any((runway.get('lighted') == 1) for runway in runways)
+    
+    surfaces = sorted({(runway.get('surface') or "") for runway in runways if runway.get('surface')})
+    
+    frequency_count = len(airport_frequencies)
+
+    has_twr = any((frequency.get('type') == 'TWR') for frequency in airport_frequencies)
 
     return {
         "runway_count" : runway_count,
-        "max_runway_lenght_ft" : max_runway_length_ft,
-        "has_lighted_runway" : has_lighted_ruway,
+        "max_runway_length_ft" : max_runway_length_ft,
+        "has_lighted_runway" : has_lighted_runway,
         "surfaces" : surfaces,
         "frequency_count" : frequency_count,
         "has_twr" : has_twr,
@@ -210,6 +218,11 @@ def create_airport_summary_collection(database, airports_cache, geolocations_cac
         
     return collection
 
+def create_flights_collection(database, airports_cache, geolocations_cache, runways_cache, airport_frequencies_cache,
+                              weather_cache, flight_status_cache, batch_size = 10000):
+
+    pass
+
 def create_optimized_collections(database, batch_size = 10000):
     """
     Function for optimized migration with batch inserts and cachcing of data in RAM.
@@ -233,8 +246,21 @@ def create_optimized_collections(database, batch_size = 10000):
     # Cache flight status data
     flight_status_cache = cache_flight_status(database)
 
-    pass
+    # Create airport summary collection
+    airports_summary_collection = create_airport_summary_collection(database, airports_cache, airports_geolocations_cache,
+                                                                   runways_cache, airport_frequencies_cache, batch_size)
+    
+    # Create weather collection
+    weather_collection = create_weather_collection(database, weather_cache, batch_size)
 
+    # Create flight collection
+    flight_collection = create_flights_collection(database)
+
+    return {
+        "flights" : flight_collection,
+        "airports_summary" : airports_summary_collection,
+        "weather" : weather_collection
+    }
 
 def build_optimized_documents(flights):
     """
