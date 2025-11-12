@@ -107,6 +107,42 @@ def cache_flight_status(database):
 
     return flight_status_cache
 
+def create_weather_collection(database, weather_cache, batch_size = 10000):
+    """
+    Function for creating normalized weather collection.
+    """
+
+    collection = database['weather_hybrid_optimized']
+    collection.drop()
+
+    documents = []
+
+    for (airport_id, date), weather_data in weather_cache.items():
+
+        document = {
+            "airport_id" : airport_id,
+            "date" : date,
+            "tavg" : weather_data.get('tavg'),
+            "tmin" : weather_data.get('tmin'),
+            "tmax" : weather_data.get('tmax'),
+            "prcp" : weather_data.get('prcp'),
+            "snow" : weather_data.get('snow'),
+            "wdir" : weather_data.get('wdir'),
+            "wspd" : weather_data.get('wspd'),
+            "pres" : weather_data.get('pres')
+        }
+    
+        documents.append(InsertOne(document))
+
+        if len(documents) >= batch_size:
+            collection.bulk_write(documents, ordered = False)
+            documents = []
+
+    if documents:
+        collection.bulk_write(documents, ordered = False)
+
+    return collection
+
 def create_optimized_collections(database, batch_size = 10000):
     """
     Function for optimized migration with batch inserts and cachcing of data in RAM.
