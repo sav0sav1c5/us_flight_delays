@@ -65,6 +65,48 @@ def cache_airport_frequencies(database):
 
     return airport_frequencies_cache
 
+def cache_weather(database):
+    """
+    Function for caching weather data by airport id and time when it's recorded.
+    """
+
+    weather_cache = {}
+
+    for weather in database['weather_meteo_by_airport'].find({}):
+
+        key = (weather.get('airport_id'), str(weather.get('time')))
+
+        weather_cache[key] = {
+            "tavg": weather.get('tavg'),
+            "tmin": weather.get('min'),
+            "tmax": weather.get('tmax'),
+            "prcp": weather.get('prcp'),
+            "snow": weather.get('snow'),
+            "wdir": weather.get('wdir'),
+            "wspd": weather.get('wspd'),
+            "pres": weather.get('pres')
+        }
+
+    return weather_cache
+
+def cache_flight_status(database):
+    """
+    Function for caching flight status data (cancelled/diverted).
+    """
+
+    flight_status_cache = {}
+
+    for flight_status in database['cancelled_diverted_2023'].find({}):
+
+        key = (str(flight_status.get('FlightDate')), flight_status.get('Airline'), flight_status.get('Dep_Airport'), flight_status.get('Arr_Airport'))
+
+        flight_status_cache[key] = {
+            "cancelled" : flight_status.get('Cancelled', 0),
+            "diverted" : flight_status.get('Diverted', 0)
+        }
+
+    return flight_status_cache
+
 def create_optimized_collections(database, batch_size = 10000):
     """
     Function for optimized migration with batch inserts and cachcing of data in RAM.
@@ -81,6 +123,12 @@ def create_optimized_collections(database, batch_size = 10000):
 
     # Cache airport frequencies data
     airport_frequencies_cache = cache_airport_frequencies(database)
+
+    # Cache weather data
+    weather_cache = cache_weather(database)
+
+    # Cache flight status data
+    flight_status_cache = cache_flight_status(database)
 
     pass
 
