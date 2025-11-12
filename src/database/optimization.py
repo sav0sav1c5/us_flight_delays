@@ -143,6 +143,73 @@ def create_weather_collection(database, weather_cache, batch_size = 10000):
 
     return collection
 
+def calculate_airport_summary_metrics(airport, runways_cache, airport_frequencies_cache):
+    """
+    Function for calculating aggregated metrics for a passed airport.
+    """
+    runway_count = 0
+    max_runway_length_ft = 0
+    has_lighted_ruway = False
+    surfaces = {}
+    frequency_count = 0
+    has_twr = False
+    
+
+    return {
+        "runway_count" : runway_count,
+        "max_runway_lenght_ft" : max_runway_length_ft,
+        "has_lighted_runway" : has_lighted_ruway,
+        "surfaces" : surfaces,
+        "frequency_count" : frequency_count,
+        "has_twr" : has_twr,
+    }
+
+def create_airport_summary_collection(database, airports_cache, geolocations_cache, runways_cache,
+                                      airport_frequencies_cache, batch_size = 10000):
+    """
+    Function for creating airports_summary collection with aggregated data.
+    """
+
+    collection = database['airports_summary_hybrid_optimized']
+    collection.drop()
+
+    documents = []
+
+    for iata_code, airport in airports_cache.items():
+
+        geolocation = geolocations_cache.get(iata_code)
+
+        metrics = calculate_airport_summary_metrics(airport, runways_cache, airport_frequencies_cache)
+
+        document = {
+            "iata" : iata_code,
+            "ident" : airport.get('ident'),
+            "type" : airport.get('type'),
+            "name" : airport.get('name'),
+            "elevation_ft" : airport.get('elevation_ft'),
+            "municipality" : airport.get('municipality'),
+            "country" : geolocation.get('COUNTRY') if geolocation else None,
+            "home_link" : airport.get('home_link'),
+            "local_code" : airport.get('local_code'),
+            "runways_count" : metrics['runways_count'],
+            "max_runway_length_ft" : metrics['max_runway_lenght_ft'],
+            "has_lighted_runway" : metrics['has_lighted_runway'],
+            "surfaces" : metrics['surfaces'],
+            "frequency_count" : metrics['frequency_count'],
+            "has_twr" : metrics['has_twr']
+        }
+
+        documents.append(InsertOne(document))
+
+        if len(documents) >= batch_size:
+            collection.bulk_write(documents, ordered = False)
+            documents = []
+
+    if documents:
+        collection.bulk_write(documents, ordered = False)
+        
+    return collection
+
 def create_optimized_collections(database, batch_size = 10000):
     """
     Function for optimized migration with batch inserts and cachcing of data in RAM.
