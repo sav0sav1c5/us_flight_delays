@@ -46,7 +46,7 @@ def cache_runways(database):
         airport_ident = runway.get('airport_ident')
 
         if airport_ident:
-            runways_cache[airport_ident.upper()].append(runway)
+            runways_cache[airport_ident].append(runway)
 
     return runways_cache
 
@@ -150,7 +150,7 @@ def calculate_airport_summary_metrics(runways, airport_frequencies):
     """
     # Calculate runway metrics
     runway_count = len(runways)
-    max_runway_length_ft = max(runway.get('length_ft') for runway in runways) if runways else 0
+    max_runway_length_ft = max((runway.get('length_ft') or 0) for runway in runways) if runways else 0
     has_lighted_runway = any((runway.get('lighted') == 1) for runway in runways)
     
     # Get unique surfaces
