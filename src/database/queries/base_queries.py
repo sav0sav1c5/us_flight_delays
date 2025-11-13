@@ -398,23 +398,86 @@ def get_query_5():
             }
         },
         {
+            "$match" : {
+                "weather_delay_count" : { "$gt" : 50 } 
+            }
+        },
+        {
             "$lookup" : {
                 "from" : "airports",
-                "localField" : "Dep_Airport",
-                "foreignField" : "iata_code",
+                "let" : {
+                    "airport_code" : "$_id.airport"
+                },
+                "pipeline" : [
+                    {
+                        "$match" : {
+                            "$expr" : {
+                                "$eq" : ["$iata_code", "$$airport_code"]
+                            },
+                            "ident" : { "$ne" : None },
+                            "elevation_ft" : { "$gt" : 500, "$ne" : None }
+                        }
+                    }
+                ],
                 "as" : "airport_info"
             }
         },
         {
+            "$match" : {
+                "airport_info" : { "$ne" : [] }
+            }
+        },
+        {
+            "$unwind" : "$airport_info"
+        },
+        {
             "$lookup" : {
                 "from" : "airport_frequencies",
-                "localField" : "airport_info.ident",
-                "foreignField" : "airport_ident",
+                "let" : { "airport_ident" : "$airport_info.ident" },
+                "pipeline" : [
+                    {
+                        "$match" : {
+                            "$expr" : {
+                                "$eq" : [ "$airport_ident", "$$airport_ident" ]
+                            }
+                        }
+                    },
+                    {
+                        "$group" : {
+                            "_id" : "$airport_ident",
+                            "frequency_count" : { "$sum" : 1 }
+                        }
+                    }
+                ],
                 "as" : "airport_freq_info"
             }
         },
         {
-            "$limit" : 5
+            "$match": {
+                "airport_freq_info": { "$ne": [] }
+            }
+        },
+        {
+            "$unwind": "$airport_freq_info"
+        },
+        {
+            "$match": {
+                "airport_freq_info.frequency_count": { "$gt": 5 }
+            }
+        },
+        {
+            "$group" : {
+                "_id" : "$_id.airline",
+                "total_weather_delays": {"$sum": "$weather_delay_count"},
+                "avg_delay_minutes": {"$avg": "$average_weather_delay"},
+                "total_delay_minutes": {"$sum": "$total_weather_delay"},
+                "affected_airports": {"$addToSet": "$_id.airport"},
+                "avg_elevation": {"$avg": "$airport_info.elevation_ft"},
+                "total_frequencies": {"$avg": "$airport_freq_info.frequency_count"}
+            }
+        },
+        {
+            "$sort" : { "total_weather_delays" : -1 }
         }
     ]
 
