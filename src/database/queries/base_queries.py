@@ -251,8 +251,7 @@ def get_query_3():
             "$group" : {
                 "_id" : "$Dep_Airport",
                 "cancelled_flights_count" : { "$sum" : 1 },
-                "city" : { "$first" : "$airport_info.CITY" },
-                "state" : { "$first" : "$airport_info.STATE" }
+                "city" : { "$first" : "$airport_info.CITY" }
             }
         },
         { 

@@ -97,13 +97,13 @@ def cache_flight_status(database):
 
     flight_status_cache = {}
 
-    for flight_status in database['cancelled_diverted_2023'].find({}):
+    for flight_status in database['cancelled_deverted_2023'].find({}):
 
         key = (str(flight_status.get('FlightDate')), flight_status.get('Airline'), flight_status.get('Dep_Airport'), flight_status.get('Arr_Airport'))
 
         flight_status_cache[key] = {
             "cancelled" : flight_status.get('Cancelled', 0),
-            "diverted" : flight_status.get('Diverted', 0)
+            "deverted" : flight_status.get('Deverted', 0)
         }
 
     return flight_status_cache
@@ -232,7 +232,7 @@ def build_optimized_flight_document(flight, airports_cache, geolocations_cache, 
     flight_status_key = (flight_date, airline, dep_iata, arr_iata)
     flight_status = flight_status_cache.get(flight_status_key, {
         "cancelled" : 0,
-        "diverted" : 0
+        "deverted" : 0
     })
 
     dep_airport = airports_cache.get(dep_iata) if dep_iata else None
