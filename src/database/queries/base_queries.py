@@ -41,7 +41,7 @@ def get_query_1():
         {
             "$addFields" : {
                 "season" : {
-                    "#switch" : {
+                    "$switch" : {
                         "branches" : [
                             {
                                 "case" : { "$in" : [ "$month", [12, 1, 2]] },
@@ -67,7 +67,7 @@ def get_query_1():
         },
         {
             "$lookup" : {
-                "from" : "airport_geolocation",
+                "from" : "airports_geolocation",
                 "localField" : "Dep_Airport",
                 "foreignField" : "IATA_CODE",
                 "as" : "geolocation_info"
@@ -102,12 +102,12 @@ def get_query_1():
         },
         {
             "$sort" : {
-                "average_delay" : -1,
+                "average_delay" : -1, 
                 "flight_count" : -1 
             }
         },
         {
-            "$limit" : 10
+            "$limit" : 5
         }
     ]
 
