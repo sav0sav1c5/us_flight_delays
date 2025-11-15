@@ -300,6 +300,7 @@ def build_optimized_flight_document(flight, airports_cache, geolocations_cache, 
                 "runway_count" : dep_metrics['runway_count'],
                 "max_runway_length_ft" : dep_metrics['max_runway_length_ft'],
                 "has_lighted_runway" : dep_metrics['has_lighted_runway'],
+                "surfaces" : dep_metrics['surfaces'],
                 "frequency_count" : dep_metrics['frequency_count'],
                 "has_twr" : dep_metrics['has_twr']
             }
